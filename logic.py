@@ -1,6 +1,11 @@
 import pypyodbc as odbc
 from env import connection_string  # Importing connection string from env.py file
 
+def get_connection():
+    conn = odbc.connect(connection_string)
+
+    return conn
+
 def is_username_available(username: str) -> bool:
     """
     Checks if the given username is available in the database.
@@ -11,21 +16,21 @@ def is_username_available(username: str) -> bool:
     Returns:
         bool: True if the username is available, False otherwise.
     """
-    conn = odbc.connect(connection_string)  # Establishing connection to the database
+    with get_connection() as conn:  # Establishing connection to the database
 
-    QUERY = f"SELECT * FROM Records WHERE username = '{username}'"  # SQL query to check for username availability
+        QUERY = "SELECT * FROM Records WHERE username = ?"  # SQL query to check for username availability
 
-    cursor = conn.cursor()
+        cursor = conn.cursor()
 
-    try:
-        cursor.execute(QUERY)  # Executing the SQL query
-        rows = cursor.fetchall()
-        if len(rows) == 0:
-            raise Exception()
-        print("Username already taken")
-        return False  # Username is already taken
-    except:
-        return True  # Username is available
+        try:
+            cursor.execute(QUERY, (username,))  # Executing the SQL query
+            rows = cursor.fetchone()
+            if len(rows) == 0:
+                raise Exception()
+            # conn.close()
+            return False  # Username is already taken
+        except:
+            return True  # Username is available
     
 
 def register(user_name: str, password: str) -> bool:
@@ -39,22 +44,22 @@ def register(user_name: str, password: str) -> bool:
     Returns:
         bool: True if the registration is successful, False otherwise.
     """
-    if is_username_available(user_name):  # Checking if the username is available
-        conn = odbc.connect(connection_string)  # Establishing connection to the database
+    with get_connection() as conn:  # Establishing connection to the database
+            
+            try:
+                QUERY = "INSERT INTO Records (username, password) VALUES (?, ?)"  # SQL query to insert new user into the database
 
-        QUERY = f"""
-                    INSERT INTO Records (username, password)
-                    VALUES ('{user_name}', '{password}')
-                """  # SQL query to insert new user into the database
+                cursor = conn.cursor()
 
-        cursor = conn.cursor()
+                
+                cursor.execute(QUERY, [user_name, password,])  # Executing the SQL query to insert new user
+                cursor.commit()
+                cursor.close()
 
-        cursor.execute(QUERY)  # Executing the SQL query to insert new user
-        cursor.commit()
-        cursor.close()
+                return True  # Registration successful
 
-        return True  # Registration successful
-    return False  # Registration unsuccessful because username is not available
+            except:
+                return False
     
    
 def login(usr: str, pwd: str) -> bool:
@@ -70,15 +75,14 @@ def login(usr: str, pwd: str) -> bool:
     """
     conn = odbc.connect(connection_string)  # Establishing connection to the database
 
-    QUERY = f"SELECT * FROM Records WHERE username = '{usr}'"  # SQL query to fetch user with provided username
+    QUERY = "SELECT * FROM Records WHERE username = ?"  # SQL query to fetch user with provided username
 
     cursor = conn.cursor()
 
     try:
-        cursor.execute(QUERY)  # Executing the SQL query
-        rows = cursor.fetchall()
-        credentials = rows[0]
-        if credentials[0] == usr and credentials[1] == pwd:
+        cursor.execute(QUERY, (usr,))  # Executing the SQL query
+        credentials = cursor.fetchone()
+        if credentials[1] == usr and credentials[2] == pwd:
             print("Success")
             return True  # Login successful
         else:

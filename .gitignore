@@ -5,3 +5,5 @@ __pycache__
 activate.txt
 
 env.py
+
+.gitignore
